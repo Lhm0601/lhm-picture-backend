@@ -1,5 +1,8 @@
 package com.lhm.lhmpicturebackend.exception;
 
+/**
+ * 抛异常工具类
+ */
 public class ThrowUtils {
 
     /**
@@ -35,3 +38,4 @@ public class ThrowUtils {
         throwIf(condition, new BusinessException(errorCode, message));
     }
 }
+

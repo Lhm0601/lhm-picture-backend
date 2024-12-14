@@ -1,19 +1,24 @@
 package com.lhm.lhmpicturebackend.service.impl;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.lhm.lhmpicturebackend.common.BaseResponse;
 import com.lhm.lhmpicturebackend.constant.UserConstant;
 import com.lhm.lhmpicturebackend.exception.BusinessException;
 import com.lhm.lhmpicturebackend.exception.ErrorCode;
 import com.lhm.lhmpicturebackend.exception.ThrowUtils;
+import com.lhm.lhmpicturebackend.model.dto.user.UserQueryRequest;
 import com.lhm.lhmpicturebackend.model.entity.User;
 import com.lhm.lhmpicturebackend.model.enums.UserRoleEnum;
-import com.lhm.lhmpicturebackend.model.vo.LoginUserVo;
+import com.lhm.lhmpicturebackend.model.vo.LoginUserVO;
+import com.lhm.lhmpicturebackend.model.vo.UserVO;
 import com.lhm.lhmpicturebackend.service.UserService;
 import com.lhm.lhmpicturebackend.mapper.UserMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -92,7 +97,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
      * 如果用户信息匹配成功，则在当前请求的Session中记录用户登录状态，并返回安全处理后的用户信息
      */
     @Override
-    public LoginUserVo userLogin(String userAccount, String userPassword, HttpServletRequest request) {
+    public LoginUserVO userLogin(String userAccount, String userPassword, HttpServletRequest request) {
         //1.校验
         // 校验用户账号和密码是否为空
         ThrowUtils.throwIf(StrUtil.hasBlank(userAccount, userPassword), ErrorCode.PARAMS_ERROR, "参数为空");
@@ -131,6 +136,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
      * @return 当前登录的用户对象如果用户未登录或登录状态无效，则抛出业务异常
      * @throws BusinessException 当用户未登录时，抛出此异常
      */
+    @Override
     public User getLoginUser(HttpServletRequest request) {
         // 判断用户是否已经登录
         Object userObj = request.getSession().getAttribute(UserConstant.USER_LOGIN_STATE);
@@ -168,6 +174,50 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         request.getSession().removeAttribute(UserConstant.USER_LOGIN_STATE);
         return true;
     }
+
+    /**
+     * 生成用户查询包装器
+     * 根据用户查询请求中的条件，创建一个QueryWrapper对象，用于后续的数据库查询操作
+     * 此方法对用户查询请求中的每个条件进行处理，确保只有当条件值不为空时才加入到查询条件中
+     *
+     * @param userQueryRequest 用户查询请求对象，包含用户查询的各种条件
+     * @return QueryWrapper<User> 用户查询的QueryWrapper对象，包含了所有查询条件
+     * @throws BusinessException 如果请求参数为空，则抛出业务异常
+     */
+    @Override
+    public QueryWrapper<User> getQueryWrapper(UserQueryRequest userQueryRequest) {
+        // 检查用户查询请求是否为空，如果为空则抛出异常
+        if (userQueryRequest == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求参数为空");
+        }
+
+        // 从用户查询请求中获取各个条件字段的值
+        Long id = userQueryRequest.getId();
+        String userName = userQueryRequest.getUserName();
+        String userProfile = userQueryRequest.getUserProfile();
+        String userRole = userQueryRequest.getUserRole();
+        String userAvatar = userQueryRequest.getUserAvatar();
+        String sortField = userQueryRequest.getSortField();
+        String sortOrder = userQueryRequest.getSortOrder();
+
+        // 创建一个新的QueryWrapper对象，用于封装查询条件
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+
+        // 以下代码块根据用户查询请求中的条件，动态生成查询条件
+        // 只有当条件值不为空时，才将该条件加入到queryWrapper中
+        queryWrapper.eq(ObjUtil.isNotNull(id), "id", id);
+        queryWrapper.like(StrUtil.isNotBlank(userName), "userName", userName);
+        queryWrapper.like(StrUtil.isNotBlank(userProfile), "userProfile", userProfile);
+        queryWrapper.eq(StrUtil.isNotBlank(userRole), "userRole", userRole);
+        queryWrapper.like(StrUtil.isNotBlank(userAvatar), "userAvatar", userAvatar);
+
+        // 添加排序条件，只有当排序字段不为空，且排序顺序为"ascend"时，才进行排序
+        queryWrapper.orderBy(StrUtil.isNotEmpty(sortField), sortOrder.equals("ascend"), sortField);
+
+        // 返回封装好查询条件的QueryWrapper对象
+        return queryWrapper;
+    }
+
     /**
      * 根据User对象获取安全的用户信息对象
      * 该方法主要用于用户数据脱敏，确保用户敏感信息不会被暴露或不当使用
@@ -175,17 +225,56 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
      * @param user User对象，包含用户的各种信息
      * @return LoginUserVo对象，包含复制的用户信息，用于展示或进一步处理
      */
-    public LoginUserVo getSafetyUser(User user) {
+    @Override
+    public LoginUserVO getSafetyUser(User user) {
         // 检查传入的User对象是否为null，如果为null，则直接返回null
         if (user == null){
             return null;
         }
         // 创建一个新的LoginUserVo对象，用于存储安全的用户信息
-        LoginUserVo loginUserVo = new LoginUserVo();
+        LoginUserVO loginUserVo = new LoginUserVO();
         // 使用BeanUtil工具类复制User对象的属性到LoginUserVo对象，实现数据的快速转换
         BeanUtil.copyProperties(user, loginUserVo);
         // 返回填充好的LoginUserVo对象
         return loginUserVo;
+    }
+
+    /**
+     * 根据User对象获取脱敏后的用户信息
+     * 此方法用于将User实体类对象转换为UserVo价值对象，主要用于数据展示时隐藏敏感信息
+     *
+     * @param user User对象，包含完整的用户信息
+     * @return UserVo对象，包含脱敏后的用户信息，如果传入的User对象为null，则返回null
+     */
+    @Override
+    public UserVO getUserVO(User user) {
+        // 检查传入的User对象是否为null，如果为null，则直接返回null
+        if (user == null){
+            return null;
+        }
+        // 创建一个新的UserVo对象，用于存储安全的用户信息
+        UserVO userVo = new UserVO();
+        // 使用BeanUtil工具类复制User对象的属性到UserVo对象，实现数据的快速转换
+        BeanUtil.copyProperties(user, userVo);
+        // 返回填充好的UserVo对象
+        return userVo;
+    }
+
+    /**
+     * 根据User对象列表获取脱敏后的用户列表
+     * 此方法接收一个User对象列表，并将每个User对象转换为UserVo对象，用于批量获取脱敏用户信息
+     *
+     * @param userList User对象列表，包含多个完整的用户信息对象
+     * @return UserVo对象列表，包含脱敏后的用户信息列表，如果传入的User对象列表为null，则返回空列表
+     */
+    @Override
+    public List<UserVO> getUserVoList(List<User> userList) {
+        // 判断传入的User对象列表是否为null，如果为null，则直接返回空列表
+        if (userList == null){
+            return new ArrayList<>();
+        }
+        // 使用流处理，将每个User对象转换为UserVo对象，并收集为列表返回
+        return userList.stream().map(this::getUserVO).collect(Collectors.toList());
     }
 
     /**
@@ -194,7 +283,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
      * @param password 用户输入的原始密码
      * @return 加密后的密码
      */
-    private String encryptPassword(String password) {
+    @Override
+    public String encryptPassword(String password) {
         // 定义盐值，用于增加密码安全性，防止彩虹表攻击
         final String salt = "ikun";
 
@@ -203,6 +293,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
         // 返回加密后的密码
         return encryptPassword;
+    }
+    @Override
+    public boolean isAdmin(User user) {
+        return user != null && UserRoleEnum.ADMIN.getValue().equals(user.getUserRole());
     }
 }
 

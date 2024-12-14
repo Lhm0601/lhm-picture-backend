@@ -4,6 +4,13 @@ server:
     context-path: /api
 
 spring:
+
+    # 开放更大的文件上传体积
+  servlet:
+     multipart:
+      max-file-size: 10MB
+  profiles:
+    active: local
   application:
     name: lhm-picture-backend
   datasource:

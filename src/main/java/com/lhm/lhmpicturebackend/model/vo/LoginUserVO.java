@@ -9,7 +9,7 @@ import java.util.Date;
  * 用户视图（脱敏）
  */
 @Data
-public class LoginUserVo implements Serializable {
+public class LoginUserVO implements Serializable {
     /**
      * 用户ID：唯一标识用户
      */

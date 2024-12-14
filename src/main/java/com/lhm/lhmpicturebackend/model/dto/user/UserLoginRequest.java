@@ -1,4 +1,4 @@
-package com.lhm.lhmpicturebackend.model.dto;
+package com.lhm.lhmpicturebackend.model.dto.user;
 
 import lombok.Data;
 
@@ -9,6 +9,7 @@ import lombok.Data;
 @Data
 public class UserLoginRequest {
     private static final long serialVersionUID = 3191241716373120793L;
+
     /**
      * 用户账号
      * 用于标识用户的身份
