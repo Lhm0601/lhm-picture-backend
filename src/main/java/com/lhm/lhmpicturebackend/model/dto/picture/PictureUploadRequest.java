@@ -18,5 +18,19 @@ public class PictureUploadRequest  implements Serializable {
      * 用于在系统中唯一标识一张图片
      */
     private Long id;
+    /**
+     * 空间 id
+     */
+    private Long spaceId;
 
+
+
+    /**
+     * 文件地址
+     */
+    /**
+     * 图片名称
+     */
+    private String picName;
+    private String fileUrl;
 }

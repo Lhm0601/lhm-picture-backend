@@ -48,6 +48,12 @@ public class UploadPictureResult {
     private Double picScale;
 
     /**
+     * 缩略图 url
+     */
+    private String thumbnailUrl;
+
+
+    /**
      * 图片格式
      * 记录图片的格式，如JPEG、PNG等，用于图片的正确解析和处理
      */
