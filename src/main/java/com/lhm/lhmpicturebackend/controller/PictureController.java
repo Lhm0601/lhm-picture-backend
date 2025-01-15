@@ -1,12 +1,18 @@
 package com.lhm.lhmpicturebackend.controller;
 
 import cn.hutool.core.util.RandomUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.digest.DigestUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.lhm.lhmpicturebackend.annotation.AuthCheck;
+import com.lhm.lhmpicturebackend.api.aliyun.AliYunAiApi;
+import com.lhm.lhmpicturebackend.api.aliyun.model.CreateOutPaintingTaskResponse;
+import com.lhm.lhmpicturebackend.api.aliyun.model.GetOutPaintingTaskResponse;
+import com.lhm.lhmpicturebackend.api.imagesearch.ImageSearchApiFacade;
+import com.lhm.lhmpicturebackend.api.imagesearch.model.ImageSearchResult;
 import com.lhm.lhmpicturebackend.common.BaseResponse;
 import com.lhm.lhmpicturebackend.common.DeleteRequest;
 import com.lhm.lhmpicturebackend.common.ResultUtils;
@@ -24,6 +30,7 @@ import com.lhm.lhmpicturebackend.model.vo.PictureVO;
 import com.lhm.lhmpicturebackend.service.PictureService;
 import com.lhm.lhmpicturebackend.service.SpaceService;
 import com.lhm.lhmpicturebackend.service.UserService;
+import org.bouncycastle.asn1.cmp.CAKeyUpdAnnContent;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -34,6 +41,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.util.AbstractList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -51,6 +59,8 @@ public class PictureController {
     private PictureService pictureService;
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
+    @Resource
+    private AliYunAiApi aliYunAiApi;
 
     private final Cache<String, String> LOCAL_CACHE =
             Caffeine.newBuilder().initialCapacity(1024)
@@ -58,6 +68,71 @@ public class PictureController {
                     // 缓存 5 分钟移除
                     .expireAfterWrite(5L, TimeUnit.MINUTES)
                     .build();
+
+
+    /**
+     * 创建 AI 扩图任务
+     */
+    @PostMapping("/out_painting/create_task")
+    public BaseResponse<CreateOutPaintingTaskResponse> createPictureOutPaintingTask(
+            @RequestBody CreatePictureOutPaintingTaskRequest createPictureOutPaintingTaskRequest,
+            HttpServletRequest request) {
+        if (createPictureOutPaintingTaskRequest == null || createPictureOutPaintingTaskRequest.getPictureId() == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        User loginUser = userService.getLoginUser(request);
+        CreateOutPaintingTaskResponse response = pictureService.createPictureOutPaintingTask(createPictureOutPaintingTaskRequest, loginUser);
+        return ResultUtils.success(response);
+    }
+
+    /**
+     * 查询 AI 扩图任务
+     */
+    @GetMapping("/out_painting/get_task")
+    public BaseResponse<GetOutPaintingTaskResponse> getPictureOutPaintingTask(String taskId) {
+        ThrowUtils.throwIf(StrUtil.isBlank(taskId), ErrorCode.PARAMS_ERROR);
+        GetOutPaintingTaskResponse task = aliYunAiApi.getOutPaintingTask(taskId);
+        return ResultUtils.success(task);
+    }
+
+
+    /**
+     * 处理批量编辑图片的请求
+     * 该方法允许用户通过发送POST请求来批量编辑图片信息
+     *
+     * @param pictureEditByBatchRequest 包含批量编辑图片信息的请求体
+     * @param request HTTP请求对象，用于获取登录用户信息
+     * @return 返回一个表示操作结果的BaseResponse对象，其中包含一个布尔值表示操作是否成功
+     */
+    @PostMapping("/edit/batch")
+    public BaseResponse<Boolean> editPictureByBatch(@RequestBody PictureEditByBatchRequest pictureEditByBatchRequest, HttpServletRequest request) {
+        // 检查请求体是否为null，如果为null则抛出参数错误异常
+        ThrowUtils.throwIf(pictureEditByBatchRequest == null, ErrorCode.PARAMS_ERROR);
+
+        // 获取当前登录的用户信息
+        User loginUser = userService.getLoginUser(request);
+
+        // 调用服务层方法执行批量编辑图片操作
+        pictureService.editPictureByBatch(pictureEditByBatchRequest, loginUser);
+
+        // 返回成功响应，表示图片批量编辑操作成功
+        return ResultUtils.success(true);
+    }
+
+    /**
+     * 以图搜图
+     */
+    @PostMapping("/search/picture")
+    public BaseResponse<List<ImageSearchResult>> searchPictureByPicture(@RequestBody SearchPictureByPictureRequest searchPictureByPictureRequest) {
+        ThrowUtils.throwIf(searchPictureByPictureRequest == null, ErrorCode.PARAMS_ERROR);
+        Long pictureId = searchPictureByPictureRequest.getPictureId();
+        ThrowUtils.throwIf(pictureId == null || pictureId <= 0, ErrorCode.PARAMS_ERROR);
+        Picture oldPicture = pictureService.getById(pictureId);
+        ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR);
+        List<ImageSearchResult> resultList = ImageSearchApiFacade.searchImage(oldPicture.getUrl());
+        return ResultUtils.success(resultList);
+    }
+
 
     /**
      * 上传图片（可重新上传）

@@ -69,32 +69,48 @@ public class CosManager {
         // 创建图片处理规则列表
         List<PicOperations.Rule> rules = new ArrayList<>();
         // 图片压缩（转成 webp 格式）
-        String webpKey = FileUtil.mainName(key) + ".webp";
+//        String webpKey = FileUtil.mainName(key) + ".webp";
+//        PicOperations.Rule compressRule = new PicOperations.Rule();
+//        compressRule.setRule("imageMogr2/format/webp");
+//        compressRule.setBucket(cosClientConfig.getBucket());
+//        compressRule.setFileId(webpKey);
+//        rules.add(compressRule);
+//        // 调整文件大小阈值为 100 KB，增大缩略图宽高为 256x256
+//        if (file.length() > 100 * 1024) {
+//            PicOperations.Rule thumbnailRule = new PicOperations.Rule();
+//            thumbnailRule.setBucket(cosClientConfig.getBucket());
+//            String thumbnailKey = FileUtil.mainName(key) + "_thumbnail." + FileUtil.getSuffix(key);
+//            thumbnailRule.setFileId(thumbnailKey);
+//
+//            // 缩放规则：增大缩略图尺寸为 256x256，保持宽高比，提高质量为 90，去除元数据
+//            thumbnailRule.setRule(String.format("imageMogr2/thumbnail/%sx%s>/quality/90/strip", 256, 256));
+//
+//            rules.add(thumbnailRule);
+//        }
+        // 图片压缩（转换为 JPEG 格式）
         PicOperations.Rule compressRule = new PicOperations.Rule();
-        compressRule.setRule("imageMogr2/format/webp");
+        compressRule.setRule("imageMogr2/format/jpg"); // 修改为 JPEG 格式
         compressRule.setBucket(cosClientConfig.getBucket());
-        compressRule.setFileId(webpKey);
+        compressRule.setFileId(FileUtil.mainName(key) + ".jpg"); // 修改文件后缀为 .jpg
         rules.add(compressRule);
-        // 调整文件大小阈值为 100 KB，增大缩略图宽高为 256x256
+
+        // 调整文件大小阈值为 100 KB，生成缩略图
         if (file.length() > 100 * 1024) {
             PicOperations.Rule thumbnailRule = new PicOperations.Rule();
             thumbnailRule.setBucket(cosClientConfig.getBucket());
-            String thumbnailKey = FileUtil.mainName(key) + "_thumbnail." + FileUtil.getSuffix(key);
+            String thumbnailKey = FileUtil.mainName(key) + "_thumbnail.jpg"; // 缩略图格式为 JPEG
             thumbnailRule.setFileId(thumbnailKey);
-
-            // 缩放规则：增大缩略图尺寸为 256x256，保持宽高比，提高质量为 90，去除元数据
             thumbnailRule.setRule(String.format("imageMogr2/thumbnail/%sx%s>/quality/90/strip", 256, 256));
-
             rules.add(thumbnailRule);
         }
-
-            // 构造处理参数
+        // 构造处理参数
         picOperations.setRules(rules);
         // 设置图片处理操作到上传请求
         putObjectRequest.setPicOperations(picOperations);
         // 执行上传操作并返回结果
         return cosClient.putObject(putObjectRequest);
     }
+
     /**
      * 删除对象
      *

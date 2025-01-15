@@ -2,12 +2,14 @@ package com.lhm.lhmpicturebackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.lhm.lhmpicturebackend.api.aliyun.model.CreateOutPaintingTaskResponse;
 import com.lhm.lhmpicturebackend.model.dto.picture.*;
 import com.lhm.lhmpicturebackend.model.entity.Picture;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.lhm.lhmpicturebackend.model.entity.User;
 import com.lhm.lhmpicturebackend.model.vo.PictureVO;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
@@ -18,6 +20,8 @@ import javax.servlet.http.HttpServletRequest;
 * @createDate 2024-12-12 13:58:50
 */
 public interface PictureService extends IService<Picture> {
+
+    CreateOutPaintingTaskResponse createPictureOutPaintingTask(CreatePictureOutPaintingTaskRequest createPictureOutPaintingTaskRequest, User loginUser);
 
     /**
      * 上传图片方法
@@ -93,6 +97,9 @@ public interface PictureService extends IService<Picture> {
 
     @Async
     void clearPictureFile(Picture oldPicture);
+
+    @Transactional(rollbackFor = Exception.class)
+    void editPictureByBatch(PictureEditByBatchRequest pictureEditByBatchRequest, User loginUser);
 
     /**
      * 批量抓取和创建图片
