@@ -10,6 +10,8 @@ import com.lhm.lhmpicturebackend.constant.UserConstant;
 import com.lhm.lhmpicturebackend.exception.BusinessException;
 import com.lhm.lhmpicturebackend.exception.ErrorCode;
 import com.lhm.lhmpicturebackend.exception.ThrowUtils;
+import com.lhm.lhmpicturebackend.manager.auth.SpaceUserAuthManager;
+import com.lhm.lhmpicturebackend.manager.auth.model.SpaceUserPermissionConstant;
 import com.lhm.lhmpicturebackend.model.dto.space.*;
 import com.lhm.lhmpicturebackend.model.dto.space.SpaceUpdateRequest;
 import com.lhm.lhmpicturebackend.model.entity.Space;
@@ -40,6 +42,8 @@ public class SpaceController {
     @Resource
     private UserService userService; // 注入用户服务
 
+    @Resource
+    SpaceUserAuthManager spaceUserAuthManager;
 
     /**
      * 添加空间
@@ -136,11 +140,18 @@ public class SpaceController {
      */
     @GetMapping("/get/vo")
     public BaseResponse<SpaceVO> getSpaceVOById(long id, HttpServletRequest request) {
-        ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR); // 参数校验
-        Space space = spaceService.getById(id); // 查询空间
-        ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR); // 检查空间是否存在
-        return ResultUtils.success(spaceService.getSpaceVO(space, request)); // 返回封装类
+        ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
+        // 查询数据库
+        Space space = spaceService.getById(id);
+        ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR);
+        SpaceVO spaceVO = spaceService.getSpaceVO(space, request);
+        User loginUser = userService.getLoginUser(request);
+        List<String> permissionList = spaceUserAuthManager.getPermissionList(space, loginUser);
+        spaceVO.setPermissionList(permissionList);
+        // 获取封装类
+        return ResultUtils.success(spaceVO);
     }
+
 
     /**
      * 分页获取空间列表（仅管理员可用）

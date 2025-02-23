@@ -14,6 +14,7 @@ import com.lhm.lhmpicturebackend.constant.UserConstant;
 import com.lhm.lhmpicturebackend.exception.BusinessException;
 import com.lhm.lhmpicturebackend.exception.ErrorCode;
 import com.lhm.lhmpicturebackend.exception.ThrowUtils;
+import com.lhm.lhmpicturebackend.manager.auth.StpKit;
 import com.lhm.lhmpicturebackend.model.dto.user.UserQueryRequest;
 import com.lhm.lhmpicturebackend.model.entity.User;
 import com.lhm.lhmpicturebackend.model.enums.UserRoleEnum;
@@ -26,6 +27,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 
 import javax.servlet.http.HttpServletRequest;
+
+import static com.lhm.lhmpicturebackend.constant.UserConstant.USER_LOGIN_STATE;
 
 /**
  * @author 梁
@@ -121,9 +124,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             // 抛出业务异常，提示用户账号或密码错误
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户账号或密码错误");
         }
-
-        // 在请求的Session中记录用户登录状态
-        request.getSession().setAttribute(UserConstant.USER_LOGIN_STATE, user);
+// 3. 记录用户的登录态
+        request.getSession().setAttribute(USER_LOGIN_STATE, user);
+// 4. 记录用户登录态到 Sa-token，便于空间鉴权时使用，注意保证该用户信息与 SpringSession 中的信息过期时间一致
+        StpKit.SPACE.login(user.getId());
+        StpKit.SPACE.getSession().set(USER_LOGIN_STATE, user);
+//        return this.getLoginUserVO(user);
 
         //4.返回
         // 返回安全处理后的用户信息对象
@@ -139,7 +145,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     @Override
     public User getLoginUser(HttpServletRequest request) {
         // 判断用户是否已经登录
-        Object userObj = request.getSession().getAttribute(UserConstant.USER_LOGIN_STATE);
+        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
         User currentUser = (User) userObj;
         // 判断是否为空
         if (currentUser == null) {
@@ -167,11 +173,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     @Override
     public boolean userLogout(HttpServletRequest request) {
         // 判断是否登录
-        if (request.getSession().getAttribute(UserConstant.USER_LOGIN_STATE) == null) {
+        if (request.getSession().getAttribute(USER_LOGIN_STATE) == null) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "未登录");
         }
         // 移除登录态
-        request.getSession().removeAttribute(UserConstant.USER_LOGIN_STATE);
+        request.getSession().removeAttribute(USER_LOGIN_STATE);
         return true;
     }
 
