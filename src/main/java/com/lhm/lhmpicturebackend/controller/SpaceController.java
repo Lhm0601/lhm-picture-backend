@@ -43,7 +43,7 @@ public class SpaceController {
     private UserService userService; // 注入用户服务
 
     @Resource
-    SpaceUserAuthManager spaceUserAuthManager;
+    private SpaceUserAuthManager spaceUserAuthManager;
 
     /**
      * 添加空间

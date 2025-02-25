@@ -9,6 +9,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.lhm.lhmpicturebackend.exception.BusinessException;
 import com.lhm.lhmpicturebackend.exception.ErrorCode;
 import com.lhm.lhmpicturebackend.exception.ThrowUtils;
+import com.lhm.lhmpicturebackend.manager.sharding.DynamicShardingManager;
 import com.lhm.lhmpicturebackend.mapper.SpaceMapper;
 import com.lhm.lhmpicturebackend.model.dto.space.SpaceAddRequest;
 import com.lhm.lhmpicturebackend.model.dto.space.SpaceQueryRequest;
@@ -24,6 +25,7 @@ import com.lhm.lhmpicturebackend.service.SpaceService;
 import com.lhm.lhmpicturebackend.service.SpaceUserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -53,7 +55,10 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space>
 
     @Resource
     private SpaceUserService spaceUserService;
-
+//取消分库分表
+//    @Resource
+//    @Lazy
+//    DynamicShardingManager dynamicShardingManager;
     /**
      * 构建空间查询条件
      *
@@ -235,7 +240,7 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space>
                 // 写入数据库
                 boolean result = this.save(space);
                 ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
-                // 如果是团队空间，关联新增团队成员记录
+// 如果是团队空间，关联新增团队成员记录
                 if (SpaceTypeEnum.TEAM.getValue() == spaceAddRequest.getSpaceType()) {
                     SpaceUser spaceUser = new SpaceUser();
                     spaceUser.setSpaceId(space.getId());
@@ -244,8 +249,12 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space>
                     result = spaceUserService.save(spaceUser);
                     ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "创建团队成员记录失败");
                 }
-                // 返回新写入的数据 id
+// 创建分表
+                //已取消分库分表
+//                dynamicShardingManager.createSpacePictureTable(space);
+// 返回新写入的数据 id
                 return space.getId();
+
 
             });
             // 返回结果是包装类，可以做一些处理
